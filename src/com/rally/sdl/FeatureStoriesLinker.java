@@ -130,10 +130,14 @@ public class FeatureStoriesLinker {
 
 	private void link(String storyJiraID, String featureJiraID, String workspaceID, String projectID)
 			throws IOException {
-		JsonObject story = getWorkItemFromJiraID(storyJiraID, "hierarchicalrequirement",
-				workspaceID, projectID);
-		JsonObject feature = getWorkItemFromJiraID(featureJiraID, "PortfolioItem/Feature",
-				workspaceID, projectID);
+		JsonObject story = getWorkItemFromJiraID(storyJiraID, "hierarchicalrequirement", workspaceID, projectID);
+		JsonObject feature = getWorkItemFromJiraID(featureJiraID, "PortfolioItem/Feature", workspaceID, projectID);
+
+		if (story == null || feature == null) {
+			// Abort if no link could be made
+			return;
+		}
+
 		JsonObject updatedStory = new JsonObject();
 		updatedStory.add("portfolioitem", feature.get("_ref"));
 		UpdateRequest updateRequest = new UpdateRequest(story.get("_ref").getAsString(),
@@ -168,8 +172,12 @@ public class FeatureStoriesLinker {
 		JsonObject story = null;
 		storyResponse = restApi.query(workItemQuery);
 		logger.info("results: " + storyResponse.getResults());
+		if (storyResponse.getResults().size() > 0) {
 		JsonElement result = storyResponse.getResults().get(0);
 		story = result.getAsJsonObject();
+		} else {
+			logger.warning("Could not find, JiraID: " + storyJiraID);
+		}
 		return story;
 	}
 
