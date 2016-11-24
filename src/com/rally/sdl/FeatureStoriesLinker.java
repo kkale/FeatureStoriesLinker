@@ -1,23 +1,5 @@
 package com.rally.sdl;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.logging.Logger;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
-import org.apache.commons.logging.impl.Log4JLogger;
-
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.rallydev.rest.RallyRestApi;
@@ -27,6 +9,12 @@ import com.rallydev.rest.response.QueryResponse;
 import com.rallydev.rest.response.UpdateResponse;
 import com.rallydev.rest.util.Fetch;
 import com.rallydev.rest.util.QueryFilter;
+import org.apache.commons.cli.*;
+
+import java.io.*;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.logging.Logger;
 
 public class FeatureStoriesLinker {
 	// static Log4JLogger logger = new Log4JLogger();
@@ -130,15 +118,19 @@ public class FeatureStoriesLinker {
 
 	private void link(String storyJiraID, String featureJiraID, String workspaceID, String projectID)
 			throws IOException {
-		JsonObject story = getWorkItemFromJiraID(storyJiraID, "hierarchicalrequirement",
-				workspaceID, projectID);
-		JsonObject feature = getWorkItemFromJiraID(featureJiraID, "PortfolioItem/Feature",
-				workspaceID, projectID);
+		JsonObject story = getWorkItemFromJiraID(storyJiraID, "hierarchicalrequirement", workspaceID, projectID);
+		JsonObject feature = getWorkItemFromJiraID(featureJiraID, "PortfolioItem/Feature", workspaceID, projectID);
+
+		if (story == null || feature == null) {
+			// Abort if no link could be made
+			return;
+		}
+
 		JsonObject updatedStory = new JsonObject();
 		updatedStory.add("portfolioitem", feature.get("_ref"));
-		UpdateRequest updateRequest = new UpdateRequest(story.get("_ref").getAsString(),
-				updatedStory);
+		UpdateRequest updateRequest = new UpdateRequest(story.get("_ref").getAsString(), updatedStory);
 		logger.info("updatedrequest: " + updateRequest.toUrl());
+
 		UpdateResponse updateResponse = restApi.update(updateRequest);
 		JsonObject obj = updateResponse.getObject();
 
@@ -168,8 +160,12 @@ public class FeatureStoriesLinker {
 		JsonObject story = null;
 		storyResponse = restApi.query(workItemQuery);
 		logger.info("results: " + storyResponse.getResults());
+		if (storyResponse.getResults().size() > 0) {
 		JsonElement result = storyResponse.getResults().get(0);
 		story = result.getAsJsonObject();
+		} else {
+			logger.warning("Could not find, JiraID: " + storyJiraID);
+		}
 		return story;
 	}
 
